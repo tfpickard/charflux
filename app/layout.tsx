@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   description: 'Transform text into mesmerizing fluid-like simulations driven by ASCII character values. Watch characters dance and interact in a 2D particle system.',
   keywords: ['ASCII', 'fluid simulation', 'particle system', 'canvas', 'visualization'],
   authors: [{ name: 'ASCII Fluid Lab' }],
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export const viewport: Viewport = {
