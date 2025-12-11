@@ -6,7 +6,7 @@ import Controls from '@/components/Controls';
 import { getDefaultText } from '@/lib/text';
 import styles from './page.module.css';
 
-type SimulationMode = 'fluid' | 'gravity' | 'chaos';
+type SimulationMode = 'fluid' | 'gravity' | 'chaos' | 'weather' | 'swarm';
 
 export default function Home() {
   const [text, setText] = useState(getDefaultText());
@@ -71,10 +71,10 @@ export default function Home() {
           <div className={styles.info}>
             <h3 className={styles.infoTitle}>How it works</h3>
             <p className={styles.infoText}>
-              Each character becomes a particle in a 2D simulation. Choose between
-              Fluid Dynamics (ASCII-based attraction/repulsion), Gravity (physics-based
-              falling and bouncing), or Chaos (perpetual turbulent motion that never settles).
-              Watch the text come alive with mesmerizing patterns.
+              Each character becomes a particle in a 2D simulation. Choose from five modes:
+              Fluid (ASCII attraction/repulsion), Gravity (physics falling), Chaos (turbulent
+              energy), Weather (rotating vortices), or Swarm (flocking behavior). Each mode
+              creates unique, mesmerizing patterns.
             </p>
             <div className={styles.stats}>
               <span className={styles.statLabel}>Particles:</span>

@@ -36,6 +36,29 @@ const CHAOS_CONFIG = {
   TURBULENCE_FREQUENCY: 0.3,
 };
 
+const WEATHER_CONFIG = {
+  NUM_VORTICES: 3,
+  VORTEX_STRENGTH: 0.08,
+  VORTEX_RADIUS: 150,
+  VORTEX_MOVE_SPEED: 0.5,
+  WIND_STRENGTH: 0.02,
+  FRICTION: 0.99,
+  MAX_VELOCITY: 4,
+};
+
+const SWARM_CONFIG = {
+  SEPARATION_RADIUS: 30,
+  ALIGNMENT_RADIUS: 60,
+  COHESION_RADIUS: 80,
+  SEPARATION_STRENGTH: 0.05,
+  ALIGNMENT_STRENGTH: 0.03,
+  COHESION_STRENGTH: 0.01,
+  RANDOM_NOISE: 0.05,
+  FRICTION: 0.995,
+  MAX_VELOCITY: 3.5,
+  NEIGHBORS_TO_CHECK: 8,
+};
+
 interface Particle {
   ch: string;
   code: number;
@@ -48,7 +71,7 @@ interface Particle {
   hue: number; // Color hue based on ASCII
 }
 
-type SimulationMode = 'fluid' | 'gravity' | 'chaos';
+type SimulationMode = 'fluid' | 'gravity' | 'chaos' | 'weather' | 'swarm';
 
 interface SimulationCanvasProps {
   text: string;
@@ -127,6 +150,30 @@ export default function SimulationCanvas({
     };
 
     initParticles();
+
+    // Initialize vortices for weather mode
+    interface Vortex {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      strength: number;
+      rotation: number;
+    }
+
+    const vortices: Vortex[] = [];
+    if (mode === 'weather') {
+      for (let i = 0; i < WEATHER_CONFIG.NUM_VORTICES; i++) {
+        vortices.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * WEATHER_CONFIG.VORTEX_MOVE_SPEED,
+          vy: (Math.random() - 0.5) * WEATHER_CONFIG.VORTEX_MOVE_SPEED,
+          strength: WEATHER_CONFIG.VORTEX_STRENGTH * (0.8 + Math.random() * 0.4),
+          rotation: Math.random() < 0.5 ? 1 : -1, // Clockwise or counter-clockwise
+        });
+      }
+    }
 
     // Simulation loop
     let lastTime = performance.now();
@@ -239,6 +286,161 @@ export default function SimulationCanvas({
               // Add random horizontal impulse on wall bounce
               p.vx += (Math.random() - 0.5) * 0.3;
             }
+          } else if (mode === 'weather') {
+            // Weather simulation mode - vortices and wind
+            // Update vortex positions
+            for (const vortex of vortices) {
+              vortex.x += vortex.vx;
+              vortex.y += vortex.vy;
+
+              // Bounce vortices off walls
+              if (vortex.x < 0 || vortex.x > canvas.width) {
+                vortex.vx *= -1;
+                vortex.x = Math.max(0, Math.min(canvas.width, vortex.x));
+              }
+              if (vortex.y < 0 || vortex.y > canvas.height) {
+                vortex.vy *= -1;
+                vortex.y = Math.max(0, Math.min(canvas.height, vortex.y));
+              }
+            }
+
+            // Apply vortex forces to particle
+            for (const vortex of vortices) {
+              const dx = p.x - vortex.x;
+              const dy = p.y - vortex.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              if (dist < WEATHER_CONFIG.VORTEX_RADIUS && dist > 1) {
+                // Calculate tangential force for rotation
+                const angle = Math.atan2(dy, dx);
+                const tangentAngle = angle + (Math.PI / 2) * vortex.rotation;
+
+                // Force decreases with distance from vortex center
+                const forceMagnitude = vortex.strength * (1 - dist / WEATHER_CONFIG.VORTEX_RADIUS);
+
+                p.vx += Math.cos(tangentAngle) * forceMagnitude;
+                p.vy += Math.sin(tangentAngle) * forceMagnitude;
+              }
+            }
+
+            // Apply global wind force (varies over time)
+            const windAngle = (currentTime / 5000) * Math.PI * 2;
+            p.vx += Math.cos(windAngle) * WEATHER_CONFIG.WIND_STRENGTH;
+            p.vy += Math.sin(windAngle) * WEATHER_CONFIG.WIND_STRENGTH;
+
+            // Apply friction
+            p.vx *= WEATHER_CONFIG.FRICTION;
+            p.vy *= WEATHER_CONFIG.FRICTION;
+
+            // Limit velocity
+            const speedSq = p.vx * p.vx + p.vy * p.vy;
+            if (speedSq > WEATHER_CONFIG.MAX_VELOCITY * WEATHER_CONFIG.MAX_VELOCITY) {
+              const speed = Math.sqrt(speedSq);
+              p.vx = (p.vx / speed) * WEATHER_CONFIG.MAX_VELOCITY;
+              p.vy = (p.vy / speed) * WEATHER_CONFIG.MAX_VELOCITY;
+            }
+
+            // Update position
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            // Wrap around boundaries
+            if (p.x < 0) p.x += canvas.width;
+            if (p.x > canvas.width) p.x -= canvas.width;
+            if (p.y < 0) p.y += canvas.height;
+            if (p.y > canvas.height) p.y -= canvas.height;
+          } else if (mode === 'swarm') {
+            // Swarm simulation mode - flocking behavior (boids)
+            let separationX = 0;
+            let separationY = 0;
+            let alignmentX = 0;
+            let alignmentY = 0;
+            let cohesionX = 0;
+            let cohesionY = 0;
+            let separationCount = 0;
+            let alignmentCount = 0;
+            let cohesionCount = 0;
+
+            // Sample random neighbors for flocking behavior
+            for (let j = 0; j < SWARM_CONFIG.NEIGHBORS_TO_CHECK; j++) {
+              const neighborIndex = Math.floor(Math.random() * particles.length);
+              if (neighborIndex === i) continue;
+
+              const neighbor = particles[neighborIndex];
+              const dx = neighbor.x - p.x;
+              const dy = neighbor.y - p.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              // Separation: Steer away from nearby neighbors
+              if (dist < SWARM_CONFIG.SEPARATION_RADIUS && dist > 0) {
+                separationX -= dx / dist;
+                separationY -= dy / dist;
+                separationCount++;
+              }
+
+              // Alignment: Match velocity with neighbors
+              if (dist < SWARM_CONFIG.ALIGNMENT_RADIUS) {
+                alignmentX += neighbor.vx;
+                alignmentY += neighbor.vy;
+                alignmentCount++;
+              }
+
+              // Cohesion: Move toward average position of neighbors
+              if (dist < SWARM_CONFIG.COHESION_RADIUS) {
+                cohesionX += dx;
+                cohesionY += dy;
+                cohesionCount++;
+              }
+            }
+
+            // Apply separation force
+            if (separationCount > 0) {
+              p.vx += (separationX / separationCount) * SWARM_CONFIG.SEPARATION_STRENGTH;
+              p.vy += (separationY / separationCount) * SWARM_CONFIG.SEPARATION_STRENGTH;
+            }
+
+            // Apply alignment force
+            if (alignmentCount > 0) {
+              const avgVx = alignmentX / alignmentCount;
+              const avgVy = alignmentY / alignmentCount;
+              p.vx += (avgVx - p.vx) * SWARM_CONFIG.ALIGNMENT_STRENGTH;
+              p.vy += (avgVy - p.vy) * SWARM_CONFIG.ALIGNMENT_STRENGTH;
+            }
+
+            // Apply cohesion force
+            if (cohesionCount > 0) {
+              const avgDx = cohesionX / cohesionCount;
+              const avgDy = cohesionY / cohesionCount;
+              p.vx += avgDx * SWARM_CONFIG.COHESION_STRENGTH;
+              p.vy += avgDy * SWARM_CONFIG.COHESION_STRENGTH;
+            }
+
+            // Add random noise to prevent perfect alignment
+            const noiseAngle = Math.random() * Math.PI * 2;
+            p.vx += Math.cos(noiseAngle) * SWARM_CONFIG.RANDOM_NOISE;
+            p.vy += Math.sin(noiseAngle) * SWARM_CONFIG.RANDOM_NOISE;
+
+            // Apply friction
+            p.vx *= SWARM_CONFIG.FRICTION;
+            p.vy *= SWARM_CONFIG.FRICTION;
+
+            // Limit velocity
+            const speedSq = p.vx * p.vx + p.vy * p.vy;
+            if (speedSq > SWARM_CONFIG.MAX_VELOCITY * SWARM_CONFIG.MAX_VELOCITY) {
+              const speed = Math.sqrt(speedSq);
+              p.vx = (p.vx / speed) * SWARM_CONFIG.MAX_VELOCITY;
+              p.vy = (p.vy / speed) * SWARM_CONFIG.MAX_VELOCITY;
+            }
+
+            // Update position
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            // Wrap around boundaries
+            if (p.x < 0) p.x += canvas.width;
+            if (p.x > canvas.width) p.x -= canvas.width;
+            if (p.y < 0) p.y += canvas.height;
+            if (p.y > canvas.height) p.y -= canvas.height;
           } else {
             // Fluid simulation mode
             // Sample a few random neighbors for interaction
