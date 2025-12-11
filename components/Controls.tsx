@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import styles from './Controls.module.css';
 
+type SimulationMode = 'fluid' | 'gravity';
+
 interface ControlsProps {
   onLoadUrl: (url: string) => Promise<void>;
   onUseDefault: () => void;
   onRestart: () => void;
   isLoading: boolean;
+  mode: SimulationMode;
+  onModeChange: (mode: SimulationMode) => void;
 }
 
 export default function Controls({
@@ -15,6 +19,8 @@ export default function Controls({
   onUseDefault,
   onRestart,
   isLoading,
+  mode,
+  onModeChange,
 }: ControlsProps) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +89,26 @@ export default function Controls({
         >
           Restart Simulation
         </button>
+      </div>
+
+      <div className={styles.modeSelector}>
+        <label className={styles.modeLabel}>Simulation Mode:</label>
+        <div className={styles.modeButtons}>
+          <button
+            onClick={() => onModeChange('fluid')}
+            disabled={isLoading}
+            className={`${styles.button} ${mode === 'fluid' ? styles.active : ''}`}
+          >
+            Fluid Dynamics
+          </button>
+          <button
+            onClick={() => onModeChange('gravity')}
+            disabled={isLoading}
+            className={`${styles.button} ${mode === 'gravity' ? styles.active : ''}`}
+          >
+            Gravity
+          </button>
+        </div>
       </div>
     </div>
   );

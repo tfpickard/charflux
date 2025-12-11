@@ -97,6 +97,36 @@
   border-radius: 8px;
 }
 
+.modeSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.modeLabel {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.modeButtons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.button.active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: #6d28d9;
+}
+
+.button.active:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+}
+
 @media (max-width: 640px) {
   .inputGroup {
     flex-direction: column;
@@ -112,5 +142,9 @@
 
   .button {
     width: 100%;
+  }
+
+  .modeButtons {
+    flex-direction: column;
   }
 }

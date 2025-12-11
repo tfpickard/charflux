@@ -19,6 +19,14 @@ const CONFIG = {
   FPS_TARGET: 60,
 };
 
+const GRAVITY_CONFIG = {
+  GRAVITY: 0.3,
+  BOUNCE_DAMPING: 0.7,
+  GROUND_FRICTION: 0.99,
+  AIR_RESISTANCE: 0.995,
+  FLOOR_OFFSET: 10,
+};
+
 interface Particle {
   ch: string;
   code: number;
@@ -31,13 +39,17 @@ interface Particle {
   hue: number; // Color hue based on ASCII
 }
 
+type SimulationMode = 'fluid' | 'gravity';
+
 interface SimulationCanvasProps {
   text: string;
+  mode?: SimulationMode;
   onParticleCount?: (count: number) => void;
 }
 
 export default function SimulationCanvas({
   text,
+  mode = 'fluid',
   onParticleCount,
 }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -129,72 +141,112 @@ export default function SimulationCanvas({
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
 
-          // Sample a few random neighbors for interaction
-          for (let j = 0; j < CONFIG.NEIGHBORS_TO_CHECK; j++) {
-            const neighborIndex = Math.floor(Math.random() * particles.length);
-            if (neighborIndex === i) continue;
+          if (mode === 'gravity') {
+            // Gravity simulation mode
+            // Apply gravity
+            p.vy += GRAVITY_CONFIG.GRAVITY * p.mass;
 
-            const neighbor = particles[neighborIndex];
+            // Apply air resistance
+            p.vx *= GRAVITY_CONFIG.AIR_RESISTANCE;
+            p.vy *= GRAVITY_CONFIG.AIR_RESISTANCE;
 
-            // Calculate distance
-            const dx = neighbor.x - p.x;
-            const dy = neighbor.y - p.y;
-            const distSq = dx * dx + dy * dy;
-            const dist = Math.sqrt(distSq);
+            // Update position
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
 
-            if (dist < CONFIG.INTERACTION_RADIUS && dist > 0) {
-              // Calculate ASCII difference
-              const codeDiff = neighbor.code - p.code;
-              const absDiff = Math.abs(codeDiff);
+            // Handle ground collision
+            const groundY = canvas.height - GRAVITY_CONFIG.FLOOR_OFFSET;
+            if (p.y >= groundY) {
+              p.y = groundY;
+              p.vy *= -GRAVITY_CONFIG.BOUNCE_DAMPING;
+              p.vx *= GRAVITY_CONFIG.GROUND_FRICTION;
 
-              // Similar characters attract, different ones repel
-              let force = 0;
-              if (absDiff < 10) {
-                // Attraction
-                force = CONFIG.ATTRACTION_STRENGTH;
-              } else {
-                // Repulsion
-                force = -CONFIG.REPULSION_STRENGTH * (absDiff / 50);
+              // Stop bouncing if velocity is very small
+              if (Math.abs(p.vy) < 0.5) {
+                p.vy = 0;
               }
-
-              // Apply force inversely proportional to distance
-              const strength = (force / (dist + 1)) / p.mass;
-              p.vx += (dx / dist) * strength;
-              p.vy += (dy / dist) * strength;
             }
-          }
 
-          // Apply friction
-          p.vx *= CONFIG.FRICTION;
-          p.vy *= CONFIG.FRICTION;
-
-          // Limit velocity
-          const speedSq = p.vx * p.vx + p.vy * p.vy;
-          if (speedSq > CONFIG.MAX_VELOCITY * CONFIG.MAX_VELOCITY) {
-            const speed = Math.sqrt(speedSq);
-            p.vx = (p.vx / speed) * CONFIG.MAX_VELOCITY;
-            p.vy = (p.vy / speed) * CONFIG.MAX_VELOCITY;
-          }
-
-          // Update position
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-
-          // Handle boundaries
-          if (CONFIG.BOUNDARY_MODE === 'wrap') {
+            // Handle side boundaries (wrap around)
             if (p.x < 0) p.x += canvas.width;
             if (p.x > canvas.width) p.x -= canvas.width;
-            if (p.y < 0) p.y += canvas.height;
-            if (p.y > canvas.height) p.y -= canvas.height;
-          } else {
-            // Bounce
-            if (p.x < 0 || p.x > canvas.width) {
-              p.vx *= -1;
-              p.x = Math.max(0, Math.min(canvas.width, p.x));
+
+            // Reset particles that go above the canvas
+            if (p.y < -50) {
+              p.y = -10;
+              p.x = Math.random() * canvas.width;
+              p.vx = (Math.random() - 0.5) * 2;
+              p.vy = 0;
             }
-            if (p.y < 0 || p.y > canvas.height) {
-              p.vy *= -1;
-              p.y = Math.max(0, Math.min(canvas.height, p.y));
+          } else {
+            // Fluid simulation mode
+            // Sample a few random neighbors for interaction
+            for (let j = 0; j < CONFIG.NEIGHBORS_TO_CHECK; j++) {
+              const neighborIndex = Math.floor(Math.random() * particles.length);
+              if (neighborIndex === i) continue;
+
+              const neighbor = particles[neighborIndex];
+
+              // Calculate distance
+              const dx = neighbor.x - p.x;
+              const dy = neighbor.y - p.y;
+              const distSq = dx * dx + dy * dy;
+              const dist = Math.sqrt(distSq);
+
+              if (dist < CONFIG.INTERACTION_RADIUS && dist > 0) {
+                // Calculate ASCII difference
+                const codeDiff = neighbor.code - p.code;
+                const absDiff = Math.abs(codeDiff);
+
+                // Similar characters attract, different ones repel
+                let force = 0;
+                if (absDiff < 10) {
+                  // Attraction
+                  force = CONFIG.ATTRACTION_STRENGTH;
+                } else {
+                  // Repulsion
+                  force = -CONFIG.REPULSION_STRENGTH * (absDiff / 50);
+                }
+
+                // Apply force inversely proportional to distance
+                const strength = (force / (dist + 1)) / p.mass;
+                p.vx += (dx / dist) * strength;
+                p.vy += (dy / dist) * strength;
+              }
+            }
+
+            // Apply friction
+            p.vx *= CONFIG.FRICTION;
+            p.vy *= CONFIG.FRICTION;
+
+            // Limit velocity
+            const speedSq = p.vx * p.vx + p.vy * p.vy;
+            if (speedSq > CONFIG.MAX_VELOCITY * CONFIG.MAX_VELOCITY) {
+              const speed = Math.sqrt(speedSq);
+              p.vx = (p.vx / speed) * CONFIG.MAX_VELOCITY;
+              p.vy = (p.vy / speed) * CONFIG.MAX_VELOCITY;
+            }
+
+            // Update position
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            // Handle boundaries
+            if (CONFIG.BOUNDARY_MODE === 'wrap') {
+              if (p.x < 0) p.x += canvas.width;
+              if (p.x > canvas.width) p.x -= canvas.width;
+              if (p.y < 0) p.y += canvas.height;
+              if (p.y > canvas.height) p.y -= canvas.height;
+            } else {
+              // Bounce
+              if (p.x < 0 || p.x > canvas.width) {
+                p.vx *= -1;
+                p.x = Math.max(0, Math.min(canvas.width, p.x));
+              }
+              if (p.y < 0 || p.y > canvas.height) {
+                p.vy *= -1;
+                p.y = Math.max(0, Math.min(canvas.height, p.y));
+              }
             }
           }
 
@@ -218,7 +270,7 @@ export default function SimulationCanvas({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [text, onParticleCount]);
+  }, [text, mode, onParticleCount]);
 
   return (
     <canvas

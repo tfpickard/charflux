@@ -6,11 +6,14 @@ import Controls from '@/components/Controls';
 import { getDefaultText } from '@/lib/text';
 import styles from './page.module.css';
 
+type SimulationMode = 'fluid' | 'gravity';
+
 export default function Home() {
   const [text, setText] = useState(getDefaultText());
   const [isLoading, setIsLoading] = useState(false);
   const [particleCount, setParticleCount] = useState(0);
   const [restartKey, setRestartKey] = useState(0);
+  const [mode, setMode] = useState<SimulationMode>('fluid');
 
   const handleLoadUrl = useCallback(async (url: string) => {
     setIsLoading(true);
@@ -40,6 +43,11 @@ export default function Home() {
     setRestartKey((prev) => prev + 1);
   }, []);
 
+  const handleModeChange = useCallback((newMode: SimulationMode) => {
+    setMode(newMode);
+    setRestartKey((prev) => prev + 1);
+  }, []);
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -56,14 +64,16 @@ export default function Home() {
             onUseDefault={handleUseDefault}
             onRestart={handleRestart}
             isLoading={isLoading}
+            mode={mode}
+            onModeChange={handleModeChange}
           />
 
           <div className={styles.info}>
             <h3 className={styles.infoTitle}>How it works</h3>
             <p className={styles.infoText}>
-              Each character becomes a particle in a 2D fluid simulation. ASCII values
-              determine particle behavior: similar characters attract, different ones
-              repel. Watch the text flow and interact in mesmerizing patterns.
+              Each character becomes a particle in a 2D simulation. Choose between
+              Fluid Dynamics (ASCII-based attraction/repulsion) or Gravity (physics-based
+              falling and bouncing). Watch the text come alive with mesmerizing patterns.
             </p>
             <div className={styles.stats}>
               <span className={styles.statLabel}>Particles:</span>
@@ -81,6 +91,7 @@ export default function Home() {
           <SimulationCanvas
             key={restartKey}
             text={text}
+            mode={mode}
             onParticleCount={setParticleCount}
           />
         </div>
