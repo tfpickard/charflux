@@ -27,6 +27,15 @@ const GRAVITY_CONFIG = {
   FLOOR_OFFSET: 10,
 };
 
+const CHAOS_CONFIG = {
+  RANDOM_FORCE_STRENGTH: 0.15,
+  CENTER_ATTRACTION: 0.005,
+  WALL_BOUNCE_ENERGY: 1.05,
+  FRICTION: 0.996,
+  MAX_VELOCITY: 5,
+  TURBULENCE_FREQUENCY: 0.3,
+};
+
 interface Particle {
   ch: string;
   code: number;
@@ -39,7 +48,7 @@ interface Particle {
   hue: number; // Color hue based on ASCII
 }
 
-type SimulationMode = 'fluid' | 'gravity';
+type SimulationMode = 'fluid' | 'gravity' | 'chaos';
 
 interface SimulationCanvasProps {
   text: string;
@@ -177,6 +186,58 @@ export default function SimulationCanvas({
               p.x = Math.random() * canvas.width;
               p.vx = (Math.random() - 0.5) * 2;
               p.vy = 0;
+            }
+          } else if (mode === 'chaos') {
+            // Chaos simulation mode - perpetual motion without steady state
+            // Apply random turbulent forces
+            if (Math.random() < CHAOS_CONFIG.TURBULENCE_FREQUENCY) {
+              const angle = Math.random() * Math.PI * 2;
+              const force = CHAOS_CONFIG.RANDOM_FORCE_STRENGTH * (0.5 + Math.random() * 0.5);
+              p.vx += Math.cos(angle) * force;
+              p.vy += Math.sin(angle) * force;
+            }
+
+            // Weak attraction to center to keep particles contained
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const dcx = centerX - p.x;
+            const dcy = centerY - p.y;
+            const centerDist = Math.sqrt(dcx * dcx + dcy * dcy);
+
+            if (centerDist > 0) {
+              const centerForce = CHAOS_CONFIG.CENTER_ATTRACTION * (centerDist / 100);
+              p.vx += (dcx / centerDist) * centerForce;
+              p.vy += (dcy / centerDist) * centerForce;
+            }
+
+            // Very light friction to prevent infinite acceleration
+            p.vx *= CHAOS_CONFIG.FRICTION;
+            p.vy *= CHAOS_CONFIG.FRICTION;
+
+            // Limit velocity
+            const speedSq = p.vx * p.vx + p.vy * p.vy;
+            if (speedSq > CHAOS_CONFIG.MAX_VELOCITY * CHAOS_CONFIG.MAX_VELOCITY) {
+              const speed = Math.sqrt(speedSq);
+              p.vx = (p.vx / speed) * CHAOS_CONFIG.MAX_VELOCITY;
+              p.vy = (p.vy / speed) * CHAOS_CONFIG.MAX_VELOCITY;
+            }
+
+            // Update position
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            // Bounce off walls with energy injection
+            if (p.x < 0 || p.x > canvas.width) {
+              p.vx *= -CHAOS_CONFIG.WALL_BOUNCE_ENERGY;
+              p.x = Math.max(0, Math.min(canvas.width, p.x));
+              // Add random vertical impulse on wall bounce
+              p.vy += (Math.random() - 0.5) * 0.3;
+            }
+            if (p.y < 0 || p.y > canvas.height) {
+              p.vy *= -CHAOS_CONFIG.WALL_BOUNCE_ENERGY;
+              p.y = Math.max(0, Math.min(canvas.height, p.y));
+              // Add random horizontal impulse on wall bounce
+              p.vx += (Math.random() - 0.5) * 0.3;
             }
           } else {
             // Fluid simulation mode

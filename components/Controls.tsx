@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import styles from './Controls.module.css';
 
-type SimulationMode = 'fluid' | 'gravity';
+type SimulationMode = 'fluid' | 'gravity' | 'chaos';
 
 interface ControlsProps {
   onLoadUrl: (url: string) => Promise<void>;
@@ -107,6 +107,13 @@ export default function Controls({
             className={`${styles.button} ${mode === 'gravity' ? styles.active : ''}`}
           >
             Gravity
+          </button>
+          <button
+            onClick={() => onModeChange('chaos')}
+            disabled={isLoading}
+            className={`${styles.button} ${mode === 'chaos' ? styles.active : ''}`}
+          >
+            Chaos
           </button>
         </div>
       </div>
