@@ -14,7 +14,7 @@ export const DEFAULT_TEXT = `The quick brown fox jumps over the lazy dog. Pack m
 
 In the beginning was the Word, and the Word was with rhythm, and the Word was rhythm. Every letter carries weight, every character has mass. A dances lightly, Z stomps heavily. Punctuation marks pause and punctuate the flow.
 
-Numbers too have their place: 1234567890. Mathematical symbols add flavor: + - * / = < >. Brackets embrace: () [] {}. Special characters spice things up: ! @ # $ % ^ & * ~ `
+Numbers too have their place: 1234567890. Mathematical symbols add flavor: + - * / = < >. Brackets embrace: () [] {}. Special characters spice things up: ! @ # $ % ^ & * ~
 
 The simulation transforms text into motion. Characters become particles. ASCII values become forces. Similar letters attract, different letters repel. Watch them dance and swirl in perpetual motion.
 

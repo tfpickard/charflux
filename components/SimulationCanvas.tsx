@@ -41,7 +41,7 @@ export default function SimulationCanvas({
   onParticleCount,
 }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const particlesRef = useRef<Particle[]>([]);
 
   useEffect(() => {
